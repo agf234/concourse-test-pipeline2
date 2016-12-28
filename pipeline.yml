@@ -1,0 +1,66 @@
+resources:
+  - name: altbosh
+    type: git
+    source:
+      uri: https://github.com/agf234/altbosh.git
+      branch: master
+
+  - name: c-code
+    type: git
+    source:
+      uri: https://github.com/agf234/c1.git
+      branch: master
+
+  - name: integration-suite
+    type: git
+    source:
+      uri: https://github.com/agf234/integration.git
+      branch: master
+
+  - name: release
+    type: git
+    source:
+      uri: https://github.com/agf234/release.git
+      branch: master
+
+jobs:
+  - name: altbosh
+    plan:
+      - get: altbosh
+        trigger: true
+      - task: unit
+        file: altbosh/build-go.yml
+
+  - name: c-code
+    plan:
+      - get: c-code
+        trigger: true
+      - task: unit
+        file: c-code/build-c.yml
+  
+  - name: integration
+    plan:
+      - aggregate: 
+        - get: integration-suite
+        - get: altbosh
+          passed: [altbosh]
+        - get: c-code
+          passed: [c-code]
+      - task: integration
+        file: integration-suite/make.yml
+
+  - name: deploy
+    serial: true
+    plan:
+      - aggregate:
+          - get: altbosh
+            passed: [integration] 
+          - get: c-code
+            passed: [integration] 
+          - get: integration-suite
+            passed: [integration] 
+          - get: release
+      - task: "DEPLOY!!"
+        file: release/deploy.yml
+      - put: release
+         
